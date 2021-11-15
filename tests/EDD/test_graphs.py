@@ -1,32 +1,42 @@
 from pathlib import Path
-
+from typing import Dict
 from ewokscore.utils import qualname
 from ewokscore import execute_graph
 
-from easistrain.EDD.calibrationEDD import calibEdd
-from .test_calibration import calib_edd_init, calib_edd_assert
+from .angle_calibration import AngleCalibTester
+from .calibration import CalibTester
+from .utils import TaskTester
 
 
-def edd_graph(config):
-    default_inputs = [{"name": name, "value": value} for name, value in config.items()]
+def edd_graph(testers: Dict[str, TaskTester]):
     nodes = [
         {
-            "id": "calib",
-            "task_type": "method",
-            "task_identifier": qualname(calibEdd),
-            "default_inputs": default_inputs,
+            "id": task_id,
+            "task_type": "class",
+            "task_identifier": qualname(tester.task),
+            "default_inputs": [
+                {"name": name, "value": value}
+                for name, value in tester.default_inputs.items()
+            ],
         }
+        for task_id, tester in testers.items()
     ]
-    links = []
+    links = [
+        {"target": task_id, **tester.links}
+        for task_id, tester in testers.items()
+        if tester.links is not None
+    ]
     return {"nodes": nodes, "links": links}
 
 
 def test_edd_graph(tmp_path: Path):
-    test_data_path, config = calib_edd_init(tmp_path)
-    graph = edd_graph(config)
+    testers: Dict[str, TaskTester] = {
+        "calib": CalibTester(tmp_path),
+        "angle_calib": AngleCalibTester(tmp_path),
+    }
+    graph = edd_graph(testers)
     results = execute_graph(graph)
-    assert len(results) == 1
+    assert len(results) == len(testers)
     for node_id, task in results.items():
         assert task.succeeded, node_id
-        if node_id == "calib":
-            calib_edd_assert(test_data_path, config)
+        testers[node_id].assert_task_results()

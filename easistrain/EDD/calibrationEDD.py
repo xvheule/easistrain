@@ -13,6 +13,10 @@ from easistrain.EDD.utils import (
 )
 
 
+def get_output_group_name(dataset: str, n_scan_h: str, n_scan_v: str) -> str:
+    return "fit" + "_" + str(dataset) + "_" + str(n_scan_h) + "_" + str(n_scan_v)
+
+
 def guessParameters(xData, yData, counterOfBoxes, nbPeaksInBoxes):
     p0Guess = np.zeros(3 * nbPeaksInBoxes[counterOfBoxes], float)
     fwhmGuess = silx.math.fit.peaks.guess_fwhm(yData)
@@ -133,13 +137,9 @@ def calibEdd(
         + str(scanNumberVerticalDetector)
     )  ## rawData subgroup in calibration group
     fitLevel1_2 = calibrationLevel1.create_group(
-        "fit"
-        + "_"
-        + str(dataset)
-        + "_"
-        + str(scanNumberHorizontalDetector)
-        + "_"
-        + str(scanNumberVerticalDetector)
+        get_output_group_name(
+            dataset, scanNumberHorizontalDetector, scanNumberVerticalDetector
+        )
     )  ## fit subgroup in calibration group
     fitLevel1_2.create_group("fitParams")  ## fit results group for the two detector
     fitLevel1_2.create_group(
